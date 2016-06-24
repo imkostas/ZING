@@ -16,7 +16,7 @@ import (
 
 // Location struct for holding data from the Location table from the database
 type Location struct {
-	ID        int     `json:"id" db:"id"`
+	ID        int     `json:"-" db:"id"` //`json:"id" db:"id"`
 	UDID      string  `json:"udid" db:"udid"`
 	Latitude  float64 `json:"latitude" db:"latitude"`
 	Longitude float64 `json:"longitude" db:"longitude"`
@@ -112,7 +112,11 @@ func SetLocation(w http.ResponseWriter, r *http.Request) {
 	loc.Latitude = latitude
 	loc.Longitude = longitude
 
-	_, err = dbmap.Update(loc)
+	if loc.ID == 0 {
+		err = dbmap.Insert(loc)
+	} else {
+		_, err = dbmap.Update(loc)
+	}
 
 	if err != nil {
 		log.Println("Error updating database", err)
