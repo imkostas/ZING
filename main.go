@@ -151,6 +151,16 @@ func CreatePair(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Insert error: ", err)
 	}
+
+	// Write reverse pair into database
+	pair.UDID2 = udid1
+	pair.UDID1 = udid2
+	pair.SessionID = ""
+
+	err = dbmap.Insert(&pair)
+	if err != nil {
+		log.Println("Insert error: ", err)
+	}
 }
 
 // RemovePair function removes the pairing of the two given udids
@@ -166,12 +176,28 @@ func RemovePair(w http.ResponseWriter, r *http.Request) {
 		log.Println("Select error: ", err)
 	}
 
+	var pair2 Pair
+	err = dbmap.SelectOne(&pair2, "SELECT * FROM pairs WHERE udid_1=? AND udid_2=?", udid2, udid1)
+	if err != nil {
+		log.Println("Select error: ", err)
+	}
+
 	if pair.ID == 0 {
 		return
 	}
 
 	// Remove the pairings in the database
 	_, err = dbmap.Delete(&pair)
+	if err != nil {
+		log.Println("Delete error: ", err)
+	}
+
+	if pair2.ID == 0 {
+		return
+	}
+
+	// Remove the inverse pairings in the database
+	_, err = dbmap.Delete(&pair2)
 	if err != nil {
 		log.Println("Delete error: ", err)
 	}
@@ -227,6 +253,8 @@ func main() {
 	router.HandleFunc("/create/{udid1}&{udid2}", CreatePair)
 	router.HandleFunc("/remove/{udid1}&{udid2}", RemovePair)
 	router.HandleFunc("/getall/{udid}", GetAllLocations)
+
+	log.Println("Server started on port :8080")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
