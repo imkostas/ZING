@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/gob"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -39,32 +40,29 @@ type Pairs []Pair
 var db *sql.DB
 var dbmap *gorp.DbMap
 
+var local = false
+
+const localString string = "root:root@tcp(localhost:8889)/ZING"
+const serverString string = "root:288norfolk@/ZING"
+
+// connectionString := "root:root@tcp(localhost:8889)/ZING"
+// connectionString := "root:288norfolk@/ZING"
+
 func initDB() {
+	var connectionString = ""
+	if local {
+		connectionString = localString
+	} else {
+		connectionString = serverString
+	}
+
 	gob.Register(&Location{})
 	gob.Register(&Pair{})
-	// connectionString := "root:root@tcp(localhost:8889)/ZING"
-	connectionString := "root:288norfolk@/ZING"
 	db, _ = sql.Open("mysql", connectionString)
 	dbmap = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"}}
-	dbmap.AddTableWithName(Location{}, "Locations").SetKeys(true, "ID")
-	dbmap.AddTableWithName(Pair{}, "Pairs").SetKeys(true, "ID")
+	dbmap.AddTableWithName(Location{}, "locations").SetKeys(true, "ID")
+	dbmap.AddTableWithName(Pair{}, "pairs").SetKeys(true, "ID")
 	dbmap.CreateTablesIfNotExists()
-}
-
-func main() {
-	initDB()
-	defer db.Close()
-
-	router := mux.NewRouter().StrictSlash(true)
-	// router.HandleFunc("/", Index)
-	// router.HandleFunc("/get", GetIndex)
-	router.HandleFunc("/get/{udid}", GetLocation)
-	router.HandleFunc("/set/{udid}/{latitude}&{longitude}", SetLocation)
-	router.HandleFunc("/create/{udid1}&{udid2}", CreatePair)
-	router.HandleFunc("/remove/{udid1}&{udid2}", RemovePair)
-	router.HandleFunc("/getall/{udid}", GetAllLocations)
-
-	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
 // func Index(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +84,7 @@ func GetLocation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	udid := vars["udid"]
 	var location Location
-	err := dbmap.SelectOne(&location, "SELECT * FROM Locations WHERE udid=?", udid)
+	err := dbmap.SelectOne(&location, "SELECT * FROM locations WHERE udid=?", udid)
 	if err != nil {
 		log.Printf("Entry for %s not found", udid)
 	}
@@ -103,7 +101,7 @@ func SetLocation(w http.ResponseWriter, r *http.Request) {
 
 	//var location Location
 	loc := &Location{0, "", 0, 0}
-	err := dbmap.SelectOne(loc, "SELECT * FROM Locations WHERE udid=?", udid)
+	err := dbmap.SelectOne(loc, "SELECT * FROM locations WHERE udid=?", udid)
 	if err != nil {
 		log.Printf("Entry for %s not found", udid)
 	}
@@ -133,7 +131,7 @@ func CreatePair(w http.ResponseWriter, r *http.Request) {
 
 	// Check if pair already exists (if it does, exit || re-auth session)
 	var pair Pair
-	err := dbmap.SelectOne(&pair, "SELECT * FROM Pairs WHERE udid_1=? AND udid_2=?", udid1, udid2)
+	err := dbmap.SelectOne(&pair, "SELECT * FROM pairs WHERE udid_1=? AND udid_2=?", udid1, udid2)
 	if err != nil {
 		log.Println("Select error: ", err)
 	}
@@ -163,7 +161,7 @@ func RemovePair(w http.ResponseWriter, r *http.Request) {
 
 	// Find pairing between the two udids
 	var pair Pair
-	err := dbmap.SelectOne(&pair, "SELECT * FROM Pairs WHERE udid_1=? AND udid_2=?", udid1, udid2)
+	err := dbmap.SelectOne(&pair, "SELECT * FROM pairs WHERE udid_1=? AND udid_2=?", udid1, udid2)
 	if err != nil {
 		log.Println("Select error: ", err)
 	}
@@ -187,7 +185,7 @@ func GetAllLocations(w http.ResponseWriter, r *http.Request) {
 	// TODO:
 	// Find all pairings with udid
 	var ids []string
-	_, err := dbmap.Select(&ids, "SELECT udid_2 FROM Pairs WHERE udid_1=?", udid)
+	_, err := dbmap.Select(&ids, "SELECT udid_2 FROM pairs WHERE udid_1=?", udid)
 
 	if err != nil {
 		log.Println("Select error: ", err)
@@ -202,7 +200,7 @@ func GetAllLocations(w http.ResponseWriter, r *http.Request) {
 	// Get the locations of those paired with udid
 	for _, id := range ids {
 		var loc Location
-		err = dbmap.SelectOne(&loc, "SELECT * FROM Locations WHERE udid=?", id)
+		err = dbmap.SelectOne(&loc, "SELECT * FROM locations WHERE udid=?", id)
 		if err != nil {
 			log.Println("Select error: ", err)
 		}
@@ -212,4 +210,23 @@ func GetAllLocations(w http.ResponseWriter, r *http.Request) {
 
 	// Return the locations to udid
 	json.NewEncoder(w).Encode(locs)
+}
+
+func main() {
+	flag.BoolVar(&local, "local", false, "Defines if the environment is local or not")
+	flag.Parse()
+
+	initDB()
+	defer db.Close()
+
+	router := mux.NewRouter().StrictSlash(true)
+	// router.HandleFunc("/", Index)
+	// router.HandleFunc("/get", GetIndex)
+	router.HandleFunc("/get/{udid}", GetLocation)
+	router.HandleFunc("/set/{udid}/{latitude}&{longitude}", SetLocation)
+	router.HandleFunc("/create/{udid1}&{udid2}", CreatePair)
+	router.HandleFunc("/remove/{udid1}&{udid2}", RemovePair)
+	router.HandleFunc("/getall/{udid}", GetAllLocations)
+
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
