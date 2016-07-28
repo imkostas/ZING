@@ -19,6 +19,7 @@ import (
 // Location struct for holding data from the Location table from the database
 type Location struct {
 	ID        int     `json:"-" db:"id"` //`json:"id" db:"id"`
+	Username  string  `json:"username" db:"username"`
 	UDID      string  `json:"udid" db:"udid"`
 	Latitude  float64 `json:"lat" db:"latitude"`
 	Longitude float64 `json:"lng" db:"longitude"`
@@ -97,17 +98,19 @@ func GetLocation(w http.ResponseWriter, r *http.Request) {
 // SetLocation function sets the location for the given udid in the database
 func SetLocation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	username := vars["username"]
 	udid := vars["udid"]
 	latitude, _ := strconv.ParseFloat(vars["latitude"], 64)
 	longitude, _ := strconv.ParseFloat(vars["longitude"], 64)
 
 	//var location Location
-	loc := &Location{0, "", 0, 0}
+	loc := &Location{0, "", "", 0, 0}
 	err := dbmap.SelectOne(loc, "SELECT * FROM locations WHERE udid=?", udid)
 	if err != nil {
 		log.Printf("Entry for %s not found", udid)
 	}
 
+    loc.Username = username
 	loc.UDID = udid
 	loc.Latitude = latitude
 	loc.Longitude = longitude
@@ -122,7 +125,7 @@ func SetLocation(w http.ResponseWriter, r *http.Request) {
 		log.Println("Error updating database", err)
 	}
 
-	fmt.Fprintf(w, "Location set for %s: lat=%f lng=%f", udid, latitude, longitude)
+	fmt.Fprintf(w, "Location set for %s: username=%s lat=%f lng=%f", udid, username, latitude, longitude)
 }
 
 // CreatePair function creates a pairing of the two given udids
@@ -256,7 +259,7 @@ func main() {
 	// router.HandleFunc("/", Index)
 	// router.HandleFunc("/get", GetIndex)
 	router.HandleFunc("/get/{udid}", GetLocation)
-	router.HandleFunc("/set/{udid}/{latitude}&{longitude}", SetLocation)
+	router.HandleFunc("/set/{username}/{udid}/{latitude}&{longitude}", SetLocation)
 	router.HandleFunc("/create/{udid1}&{udid2}", CreatePair)
 	router.HandleFunc("/remove/{udid1}&{udid2}", RemovePair)
 	router.HandleFunc("/getall/{udid}", GetAllLocations)
