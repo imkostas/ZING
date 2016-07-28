@@ -17,22 +17,8 @@
 	</head>
 	<body>
 		<div id="map"></div>
-		<script type="text/javascript">
-			var map;
-			function initMap(){
-				map = new google.maps.Map(document.getElementById('map'), {
-					center: {lat: 41.123, lng: 121.644},
-          zoom: 8
-				});
-
-				var marker = new google.maps.Marker({
-			    position: {lat: 41.123, lng: 121.644},
-			    title:"Hello World!"
-				});
-
-				marker.setMap(map)
-			}
-		</script>
-		<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBi-7Mphqp8TjX5KhYE-r-rGRYByt_3qZk&callback=initMap" async defer></script>
+		<script type="text/javascript" src="map.js"></script>
+		<!-- ******************** KEY NEEDS TO BE REPLACED ******************** -->
+		<script src="https://maps.googleapis.com/maps/api/js?key=API_KEY&callback=initMap" async defer></script>
 	</body>
 </html>

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/anachronistic/apns"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"gopkg.in/gorp.v1"
@@ -19,8 +20,8 @@ import (
 type Location struct {
 	ID        int     `json:"-" db:"id"` //`json:"id" db:"id"`
 	UDID      string  `json:"udid" db:"udid"`
-	Latitude  float64 `json:"latitude" db:"latitude"`
-	Longitude float64 `json:"longitude" db:"longitude"`
+	Latitude  float64 `json:"lat" db:"latitude"`
+	Longitude float64 `json:"lng" db:"longitude"`
 }
 
 // Locations type is a helper type to make the handling of multiple locations easier
@@ -42,8 +43,8 @@ var dbmap *gorp.DbMap
 
 var local = false
 
-const localString string = "root:root@tcp(localhost:8889)/ZING"
-const serverString string = "root:288norfolk@/ZING"
+const localString string = "root:root@tcp(localhost:8889)/zing"
+const serverString string = "root:288norfolk@/zing"
 
 // connectionString := "root:root@tcp(localhost:8889)/ZING"
 // connectionString := "root:288norfolk@/ZING"
@@ -89,6 +90,7 @@ func GetLocation(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Entry for %s not found", udid)
 	}
 
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(location)
 }
 
@@ -235,7 +237,12 @@ func GetAllLocations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the locations to udid
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(locs)
+}
+
+func sendNotification(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func main() {
