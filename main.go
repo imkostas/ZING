@@ -110,7 +110,7 @@ func SetLocation(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Entry for %s not found", udid)
 	}
 
-    loc.Username = username
+	loc.Username = username
 	loc.UDID = udid
 	loc.Latitude = latitude
 	loc.Longitude = longitude
@@ -245,7 +245,26 @@ func GetAllLocations(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendNotification(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	udid := vars["udid"]
+	message := vars["message"]
 
+	payload := apns.NewPayload()
+	payload.Alert = message
+	payload.Badge = 0
+	payload.Sound = "bingbong.aiff"
+
+	pn := apns.NewPushNotification()
+	pn.DeviceToken = udid
+	pn.AddPayload(payload)
+
+	client := apns.NewClient("gateway.sandbox.push.apple.com:2195", "YOUR_CERT_PEM", "YOUR_KEY_NOENC_PEM")
+	resp := client.Send(pn)
+
+	alert, _ := pn.PayloadString()
+	fmt.Println("  Alert:", alert)
+	fmt.Println("Success:", resp.Success)
+	fmt.Println("  Error:", resp.Error)
 }
 
 func main() {
@@ -263,6 +282,7 @@ func main() {
 	router.HandleFunc("/create/{udid1}&{udid2}", CreatePair)
 	router.HandleFunc("/remove/{udid1}&{udid2}", RemovePair)
 	router.HandleFunc("/getall/{udid}", GetAllLocations)
+	router.HandleFunc("/notification/{udid}&{message}", sendNotification)
 
 	log.Println("Server started on port :8080")
 
