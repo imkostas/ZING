@@ -21,8 +21,8 @@ type Location struct {
 	ID        int     `json:"-" db:"id"` //`json:"id" db:"id"`
 	Username  string  `json:"username" db:"username"`
 	UDID      string  `json:"udid" db:"udid"`
-	Latitude  float64 `json:"lat" db:"latitude"`
-	Longitude float64 `json:"lng" db:"longitude"`
+	Latitude  float64 `json:"latitude" db:"latitude"`
+	Longitude float64 `json:"longitude" db:"longitude"`
 }
 
 // Locations type is a helper type to make the handling of multiple locations easier
@@ -80,6 +80,24 @@ func initDB() {
 //
 // 	json.NewEncoder(w).Encode(locations)
 // }
+
+// GetIndex function searches the database for data available
+func GetIndex(w http.ResponseWriter, r *http.Request) {
+
+	// TODO:
+	// Get all indexed data
+	var locs Locations
+	_, err := dbmap.Select(&locs, "SELECT * FROM locations WHERE 1 ORDER BY username")
+
+	if err != nil {
+		log.Println("Select error: ", err)
+	}
+
+	// Return the locations to udid
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(locs)
+
+}
 
 // GetLocation function searches the database for the location of the given udid
 func GetLocation(w http.ResponseWriter, r *http.Request) {
@@ -257,14 +275,17 @@ func sendNotification(w http.ResponseWriter, r *http.Request) {
 	pn := apns.NewPushNotification()
 	pn.DeviceToken = udid
 	pn.AddPayload(payload)
+	
+	pn.Set("udid", udid)
 
-	client := apns.NewClient("gateway.sandbox.push.apple.com:2195", "YOUR_CERT_PEM", "YOUR_KEY_NOENC_PEM")
+	client := apns.NewClient("gateway.sandbox.push.apple.com:2195", "./certs/zing_cert.pem", "./certs/zing_key.pem")
 	resp := client.Send(pn)
 
 	alert, _ := pn.PayloadString()
-	fmt.Println("  Alert:", alert)
-	fmt.Println("Success:", resp.Success)
-	fmt.Println("  Error:", resp.Error)
+	fmt.Fprintf(w,"  Alert: %s", alert)
+	fmt.Fprintf(w,"  Success: %s", resp.Success)
+	fmt.Fprintf(w,"  Error: %s", resp.Error)
+
 }
 
 func main() {
@@ -277,6 +298,7 @@ func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	// router.HandleFunc("/", Index)
 	// router.HandleFunc("/get", GetIndex)
+	router.HandleFunc("/getindex", GetIndex)
 	router.HandleFunc("/get/{udid}", GetLocation)
 	router.HandleFunc("/set/{username}/{udid}/{latitude}&{longitude}", SetLocation)
 	router.HandleFunc("/create/{udid1}&{udid2}", CreatePair)
